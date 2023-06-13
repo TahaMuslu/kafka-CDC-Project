@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producer-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: producer
+  template:
+    metadata:
+      labels:
+        app: producer
+    spec:
+      containers:
+        - name: producer
+          image: taha1216/producer:latest
+          env:
+            - name: KAFKA_BROKERCONNECT
+              value: kafka-1:9092
+            - name: MONGODB_DB
+              value: kafka-deneme
+            - name: MONGODB_C
+              value: taha1216
+            - name: TOPIC
+              value: X
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: root
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: example

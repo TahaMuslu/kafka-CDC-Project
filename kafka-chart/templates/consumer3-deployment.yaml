@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer3-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: consumer3
+  template:
+    metadata:
+      labels:
+        app: consumer3
+    spec:
+      containers:
+        - name: consumer3
+          image: <your-consumer-image>:<tag>
+          volumeMounts:
+            - name: consumer-volume
+              mountPath: /kafkarun.py
+          env:
+            - name: KAFKA_BROKERCONNECT
+              value: kafka-1:9092
+            - name: TOPIC
+              value: X
+            - name: CONSUMER_ID
+              value: "3"

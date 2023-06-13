@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-topics-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-topics
+  template:
+    metadata:
+      labels:
+        app: kafka-topics
+    spec:
+      containers:
+        - name: kafka-topics
+          image: confluentinc/cp-kafka:5.5.0
+          command:
+            [
+              "bash",
+              "-c",
+              "echo creating topics && kafka-topics --bootstrap-server kafka-1:9092 --create --topic X --partitions 1 --replication-factor 3",
+            ]
