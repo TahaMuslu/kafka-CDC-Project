@@ -3,6 +3,10 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:5.5.0
     container_name: zookeeper
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-data:/var/lib/zookeeper/log
+      - zookeeper-data:/etc/zookeeper/secrets
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -10,6 +14,9 @@ services:
   kafka-1:
     image: confluentinc/cp-kafka:5.5.0
     container_name: kafka-1
+    volumes:
+      - kafka-data1:/var/lib/kafka/data
+      - kafka-data1:/etc/kafka/secrets
     depends_on:
       - zookeeper
     ports:
@@ -22,7 +29,47 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+
+  kafka-2:
+    image: confluentinc/cp-kafka:5.5.0
+    container_name: kafka-2
+    volumes:
+    - kafka-data2:/var/lib/kafka/data
+    - kafka-data2:/etc/kafka/secrets   
+    depends_on:
+      - zookeeper
+    ports:
+      - 9093:9092
+    healthcheck:
+      test: "/usr/bin/kafka-topics --list --zookeeper zookeeper:2181"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+
+  kafka-3:
+    image: confluentinc/cp-kafka:5.5.0
+    container_name: kafka-3
+    volumes:
+    - kafka-data3:/var/lib/kafka/data
+    - kafka-data3:/etc/kafka/secrets
+    depends_on:
+      - zookeeper
+    ports:
+      - 9094:9092
+    healthcheck:
+      test: "/usr/bin/kafka-topics --list --zookeeper zookeeper:2181"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
   
   kafdrop:
     image: obsidiandynamics/kafdrop:latest
@@ -38,6 +85,9 @@ services:
   kafka-topics:
     image: confluentinc/cp-kafka:5.5.0
     container_name: kafka-topics
+    volumes:
+    - kafka-topic-data:/var/lib/kafka/data
+    - kafka-topic-data:/etc/kafka/secrets
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -46,10 +96,11 @@ services:
 
   producer:
     build: producer
+    restart: always
     container_name: producer
     depends_on:
       - kafka-topics
-      - mongo
+      - mongo-init
     volumes:
       - ./producer/producer.py:/kafkarun.py
     environment:
@@ -63,6 +114,7 @@ services:
     container_name: consumer1
     depends_on:
       - kafka-topics
+      - mongo-init
     volumes:
       - ./consumer/consumer.py:/kafkarun.py
     environment:
@@ -75,10 +127,11 @@ services:
     container_name: consumer2
     depends_on:
       - kafka-topics
+      - mongo-init
     volumes:
       - ./consumer/consumer.py:/kafkarun.py
     environment:
-      KAFKA_BROKERCONNECT: kafka-1:9092
+      KAFKA_BROKERCONNECT: kafka-2:9092
       TOPIC: X
       CONSUMER_ID: 2
 
@@ -87,30 +140,33 @@ services:
     container_name: consumer3
     depends_on:
       - kafka-topics
+      - mongo-init
     volumes:
       - ./consumer/consumer.py:/kafkarun.py
     environment:
-      KAFKA_BROKERCONNECT: kafka-1:9092
+      KAFKA_BROKERCONNECT: kafka-3:9092
       TOPIC: X
       CONSUMER_ID: 3
   
   mongo:
     image: mongo:latest
+    volumes:
+      - mongo-data1:/data/configdb
+      - mongo-data1:/data/db
     depends_on:
       - m1
       - m2
     restart: always
-    command: 
-    - mongod --replSet mongoSet
-    - mongosh --eval "config = {_id:\"mongoSet\",members:[{_id:0,host:\"mongo:27017\"},{_id:1,host:\"m1:27017\"},{_id:2,host:\"m2:27017\"}]}"
-    - mongosh --eval "rs.initiate(config);"
-    # command: bash -c 'mongod --replSet mongoSet && mongosh --eval "config = {_id:\"mongoSet\",members:[{_id:0,host:\"mongo:27017\"},{_id:1,host:\"m1:27017\"},{_id:2,host:\"m2:27017\"}]}"  && mongosh --eval "rs.initiate(config);"'
+    command: mongod --replSet mongoSet
     ports:
       - 27020:27017
     container_name: "mongo"
 
   m1:
     image: mongo:latest
+    volumes:
+      - mongo-data2:/data/configdb
+      - mongo-data2:/data/db
     restart: always
     command: mongod --replSet mongoSet
     ports:
@@ -119,11 +175,26 @@ services:
 
   m2:
     image: mongo:latest
+    volumes:
+      - mongo-data3:/data/configdb
+      - mongo-data3:/data/db
     restart: always
     command: mongod --replSet mongoSet
     ports:
       - 27022:27017
     container_name: "m2"
+
+  mongo-init:
+    image: mongo:latest
+    volumes:
+      - mongo-init-data:/data/configdb
+      - mongo-init-data:/data/db
+    depends_on:
+      - mongo
+      - m1
+      - m2
+    command: mongosh --host mongo --eval "rs.initiate({_id:\"mongoSet\",members:[{_id:0,host:\"mongo:27017\"},{_id:1,host:\"m1:27017\"},{_id:2,host:\"m2:27017\"}]});"
+    container_name: "mongo-init"
 
   kafkadeneme:
     build: deneme-site
@@ -143,8 +214,23 @@ services:
       PORT: 8000
 
 volumes:
-  mongodb-data:
+  kafka-data1:
     driver: local
-  mongodb-config:
+  kafka-data2:
     driver: local
+  kafka-data3:
+    driver: local
+  kafka-topic-data:
+    driver: local
+  mongo-data1:
+    driver: local
+  mongo-data2:
+    driver: local
+  mongo-data3:
+    driver: local
+  zookeeper-data:
+    driver: local
+  mongo-init-data:
+    driver: local
+
   

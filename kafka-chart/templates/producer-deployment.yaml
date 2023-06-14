@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: producer-deployment
+  name: producer
 spec:
   replicas: 1
   selector:
@@ -14,17 +14,20 @@ spec:
     spec:
       containers:
         - name: producer
-          image: taha1216/producer:latest
+          image: <your_producer_image>
+          volumeMounts:
+            - name: producer-code
+              mountPath: /kafkarun.py
           env:
             - name: KAFKA_BROKERCONNECT
-              value: kafka-1:9092
+              value: "kafka-1:9092"
             - name: MONGODB_DB
-              value: kafka-deneme
+              value: "kafka-deneme"
             - name: MONGODB_C
-              value: taha1216
+              value: "taha1216"
             - name: TOPIC
-              value: X
-            - name: MONGO_INITDB_ROOT_USERNAME
-              value: root
-            - name: MONGO_INITDB_ROOT_PASSWORD
-              value: example
+              value: "X"
+      volumes:
+        - name: producer-code
+          hostPath:
+            path: /path/to/producer/code

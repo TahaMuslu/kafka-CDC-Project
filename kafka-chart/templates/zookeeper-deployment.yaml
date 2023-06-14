@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: zookeeper-deployment
+  name: zookeeper
 spec:
   replicas: 1
   selector:
@@ -17,8 +17,25 @@ spec:
           image: confluentinc/cp-zookeeper:5.5.0
           ports:
             - containerPort: 2181
+          volumeMounts:
+            - name: zookeeper-data
+              mountPath: /var/lib/zookeeper/data
+            - name: zookeeper-log
+              mountPath: /var/lib/zookeeper/log
+            - name: zookeeper-secrets
+              mountPath: /etc/zookeeper/secrets
           env:
             - name: ZOOKEEPER_CLIENT_PORT
               value: "2181"
             - name: ZOOKEEPER_TICK_TIME
               value: "2000"
+      volumes:
+        - name: zookeeper-data
+          persistentVolumeClaim:
+            claimName: zookeeper-data
+        - name: zookeeper-log
+          persistentVolumeClaim:
+            claimName: zookeeper-data
+        - name: zookeeper-secrets
+          persistentVolumeClaim:
+            claimName: zookeeper-data
