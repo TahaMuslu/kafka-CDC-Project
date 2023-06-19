@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.28.0 (c4137012e)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: m2
+  name: m2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: m2
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.28.0 (c4137012e)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/opt-default: "true"
+        io.kompose.service: m2
+    spec:
+      containers:
+        - args:
+            - mongod
+            - --replSet
+            - mongoSet
+          image: mongo:latest
+          name: m2
+          ports:
+            - containerPort: 27017
+          resources: {}
+          volumeMounts:
+            - mountPath: /data/configdb
+              name: mongo-data3
+            - mountPath: /data/db
+              name: mongo-data3
+      restartPolicy: Always
+      volumes:
+        - name: mongo-data3
+          persistentVolumeClaim:
+            claimName: mongo-data3
+        - name: mongo-data3
+          persistentVolumeClaim:
+            claimName: mongo-data3
+status: {}
